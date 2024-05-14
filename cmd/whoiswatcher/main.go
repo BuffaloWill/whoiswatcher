@@ -87,7 +87,6 @@ func init() {
 func processWatchList(filePath string) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		// todo require a user to set the watchlist or ignore watchlist altogether
 		fmt.Fprintf(os.Stderr, "Error reading YAML file: %v\n", err)
 		os.Exit(1)
 	}
@@ -114,7 +113,7 @@ func processFile(filePath string) {
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
 		go func() {
-			//defer wg.Done() -- why did I comment this out??
+			//defer wg.Done()
 			for domain := range domainChan {
 				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 				defer cancel()
@@ -257,7 +256,7 @@ func processDomain(domain string) {
 	if result.Registrant == nil {
 		//fmt.Println("Rate Limited: ", domain)
 		//fmt.Printf("%+v", result)
-		// TODO - whois library has a rate limiting boolean check, this should be validated first
+		// TODO - whois library has a rate limiting boolean check, this should be used first
 		rateLimited = append(rateLimited, domain)
 		return
 	}
@@ -338,7 +337,7 @@ func processDomain(domain string) {
 
 	//registrarToCheck := result.Registrar.Name
 
-	// todo - allow a check for a contains on domain (e.g. foo sucks)
+	// todo - allow a check for a contains on domain (e.g. foo.sucks)
 	for _, condition := range watchlist {
 		if len(condition.Combo) > 0 {
 			// Todo - This code smells bad and needs to be refactored. checkForMatch could return true or false?
