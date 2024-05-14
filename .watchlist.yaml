@@ -1,0 +1,16 @@
+- key: email
+  type: contains
+  value: "@bankofamerica.com"         # match for bankofamerica.com
+- key: organization
+  type: contains
+  value: Google LLC                   # match for youtube.com
+- key: phone
+  type: contains
+  value: 6173921636                   # match for fidelity.com
+- combo:
+    - key: domain
+      type: contains
+      value: tesla
+    - key: organization
+      type: contains
+      value: DNStination              # match for teslamotors.com
