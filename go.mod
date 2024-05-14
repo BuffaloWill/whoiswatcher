@@ -1,4 +1,4 @@
-module whoiswatcher
+module github.com/BuffaloWill/whoiswatcher
 
 go 1.20
 
