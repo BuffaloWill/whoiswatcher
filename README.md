@@ -13,14 +13,18 @@ Additionally, there are 30k to 200k+ new domains registered every day.
 
 whoiswatcher was built to:
 
-* Perform large sets of whois lookups quickly. It can be set in lambda or serverless resources.
+* Perform large sets of whois lookups quickly. It can be run in lambda or with serverless resources.
 
 * Given a large set of domains as input, whoiswatcher will notify you to a domain registered to a company in your scope. 
-For example, if you feed it a list of yesterday's registered domains ([link]) and there is a matching artifact to look for (e.g. registrant email) in your configuration; it will print to stdout. 
-The configuration can also combine two pieces of information. 
-For example, if there is a partial company name (e.g. tesla) and a registrant org they consistently use (e.g. DNStination) you can get alerted on this.
+For example, if you feed it a list of yesterday's registered domains ([Daily Newly Registered Domains](https://www.whoisds.com/newly-registered-domains)) and there is a matching artifact to look for (e.g. registrant email) in your configuration; it will print to stdout. 
+The configuration can also combine two pieces of information (see Use Cases). 
 
 * whoiswatcher is designed to be fast, configurable, and with predictable output. For example, you can provide a single domain from stdin or a large set in a file and store searchable JSON output.
+
+### Useful Input
+
+Daily List of Newly Registered Domains: https://www.whoisds.com/newly-registered-domains
+Cisco Umbrella Top 1 Million Domains: https://umbrella-static.s3-us-west-1.amazonaws.com/index.html
 
 ## Use Cases
 
