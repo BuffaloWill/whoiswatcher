@@ -23,8 +23,9 @@ The configuration can also combine two pieces of information (see Use Cases).
 
 ### Useful Input
 
-Daily List of Newly Registered Domains: https://www.whoisds.com/newly-registered-domains
-Cisco Umbrella Top 1 Million Domains: https://umbrella-static.s3-us-west-1.amazonaws.com/index.html
+* Daily List of Newly Registered Domains: https://www.whoisds.com/newly-registered-domains
+
+* Cisco Umbrella Top 1 Million Domains: https://umbrella-static.s3-us-west-1.amazonaws.com/index.html
 
 ## Use Cases
 
