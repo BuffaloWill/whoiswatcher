@@ -29,7 +29,13 @@ The configuration can also combine two pieces of information (see Use Cases).
 
 ## Use Cases
 
-### Watching Daily Domain Lists
+### Simplest Use Case
+
+```bash
+echo fidelity.com | whoiswatcher
+```
+
+### Getting Alerted on an Artifact
 
 First, we need to set a list of components (e.g. email, organization, phone, etc.) to watch on in `.watchlist.yaml`:
 
@@ -74,9 +80,9 @@ A failed match will not print anything:
 echo yahoo.com | ./whoiswatcher -w .watchlist.yaml
 ```
 
-### Verbose
+### Analyzing a large list
 
-To print all of the results from lookups use `-v`:
+To print results from lookups even with a watchlist use `-v`:
 
 ```bash
 ./whoiswatcher -v -f large_domain_list.txt
@@ -84,7 +90,7 @@ To print all of the results from lookups use `-v`:
 
 ### Quick Lookup
 
-You can quickly lookup just the email or phone of a domain with `-u`:
+You can quickly find just the email or phone of a domain with `-u`:
 
 ```bash
 echo fidelity.com | ./whoiswatcher -u email
