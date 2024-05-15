@@ -15,9 +15,9 @@ whoiswatcher was built to:
 
 * Perform large sets of whois lookups quickly. It can be run in lambda or with serverless resources.
 
-* Given a large set of domains as input, whoiswatcher will notify you to a domain registered to a company in your scope. 
+* Given a large set of domains as input, whoiswatcher will alert you of a domain in your scope (e.g. registrant email) 
 For example, if you feed it a list of yesterday's registered domains ([Daily Newly Registered Domains](https://www.whoisds.com/newly-registered-domains)) and there is a matching artifact to look for (e.g. registrant email) in your configuration; it will print to stdout. 
-The configuration can also combine two pieces of information (see Use Cases). 
+The configuration can also combine two pieces of information. For example a domain name (e.g. Tesla) plus the registrar they typically use (e.g. DNSination). See Use Cases below for more examples.
 
 * whoiswatcher is designed to be fast, configurable, and with predictable output. For example, you can provide a single domain from stdin or a large set in a file and store searchable JSON output.
 
@@ -37,7 +37,7 @@ echo fidelity.com | whoiswatcher
 
 ### Getting Alerted on an Artifact
 
-First, we need to set a list of components (e.g. email, organization, phone, etc.) to watch on in `.watchlist.yaml`:
+First, we need to set a list of components (e.g. email, organization, phone, etc.) to watch in `.watchlist.yaml`:
 
 ```yaml
 - key: email
@@ -130,7 +130,7 @@ Combo Match: [{domain contains tesla} {organization contains DNStination}]
 
 ### Searching Historic Domains
 
-Let's say in the past I performed a WHOIS lookups using whoiswatcher on a large set of domains and stored the results to a JSON file. Later I want to come back and search through the entries using an updated watchlist:
+Let's say in the past we performed a WHOIS lookups using whoiswatcher on a large set of domains and stored the results to a JSON file. Later we want to come back and search through the entries using an updated watchlist:
 
 ```bash
 ./whoiswatcher -j results.json -w .newwatchlist.yaml
