@@ -4,8 +4,8 @@ stest:
 	echo fidelity.com | ./whoiswatcher -e	-w .watchlist.yaml			# hit
 	echo youtube.com | ./whoiswatcher -e -w .watchlist.yaml			# hit
 	echo bankofamerica.com | ./whoiswatcher -e -w .watchlist.yaml		# hit
-	echo paypal.com | ./whoiswatcher -e -w .watchlist.yaml  			# miss
-	echo tesla.com | ./whoiswatcher -e -w .watchlist.yaml 			# miss
+	echo paypal.com | ./whoiswatcher -e -w .watchlist.yaml -s 1 		# miss
+	echo tesla.com | ./whoiswatcher -e -w .watchlist.yaml -s 1 			# miss
 
 .phony: test
 test:
@@ -45,3 +45,7 @@ jsoni:
 	echo fidelity.com | ./whoiswatcher -j tests/single-test.json -w .watchlist.yaml
 	echo fidelity.com | ./whoiswatcher -j tests/many-lines.json -w .watchlist.yaml
 	echo brenau.edu | ./whoiswatcher -j tests/tenthousand-domains.json -w .watchlist.yaml
+
+.phony: buildz
+buildz:
+	GOARCH=amd64 GOOS=linux go build -o builds/whoiswatcher-v1.0.1-x86-64 cmd/whoiswatcher/main.go

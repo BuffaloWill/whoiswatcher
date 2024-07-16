@@ -88,7 +88,7 @@ To print results from lookups even with a watchlist use `-v`:
 ./whoiswatcher -v -f large_domain_list.txt
 ```
 
-### Quick Lookup
+### Quick Lookup 
 
 You can quickly find just the email or phone of a domain with `-u`:
 

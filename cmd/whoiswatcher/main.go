@@ -37,6 +37,7 @@ var lock sync.Mutex
 var threads int
 var strikes []string
 var jsoni string
+var sleeper int
 
 type WatchList []Condition
 
@@ -59,9 +60,10 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Print out all whois lookups")
 	rootCmd.PersistentFlags().BoolVarP(&errorMessages, "error", "e", false, "Only print if there is an error.")
 	rootCmd.PersistentFlags().StringVarP(&outputField, "outputField", "u", "", "Output a single field from the result: email, phone, name, or organization")
-	rootCmd.PersistentFlags().StringVarP(&socksproxy, "proxy", "p", "", "Proxy to use")
+	rootCmd.PersistentFlags().StringVarP(&socksproxy, "proxy", "p", "", "SOCKS5 Proxy to use")
 	rootCmd.PersistentFlags().IntVarP(&threads, "threads", "t", 10, "Number of threads")
 	rootCmd.PersistentFlags().StringVarP(&jsoni, "jsoninput", "j", "", "Run against a previously imported json file")
+	rootCmd.PersistentFlags().IntVarP(&sleeper, "sleep", "s", 10, "Seconds to sleep between requests when rate limited.")
 
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
 		// If a user doesn't set a watchlist, automatically output the result
@@ -140,8 +142,8 @@ func processFile(filePath string) {
 }
 
 func processRateLimited() {
-	fmt.Printf("Processing a total of %v rate limited domains, sleeping for 10 seconds \n", len(rateLimited))
-	time.Sleep(10 * time.Second)
+	fmt.Printf("Processing a total of %v rate limited domains, sleeping for %v seconds \n", len(rateLimited), sleeper)
+	time.Sleep(time.Duration(sleeper) * time.Second)
 
 	for {
 		lock.Lock()
@@ -155,8 +157,8 @@ func processRateLimited() {
 		rand.Seed(time.Now().UnixNano())
 		randomNumber := rand.Intn(10)
 		if randomNumber == 0 {
-			fmt.Printf("Processing a total of %v rate limited domains, sleeping for 10 seconds \n", len(rateLimited))
-			time.Sleep(10 * time.Second)
+			fmt.Printf("Processing a total of %v rate limited domains, sleeping for %v seconds \n", len(rateLimited), sleeper)
+			time.Sleep(time.Duration(sleeper) * time.Second)
 		}
 	}
 }
