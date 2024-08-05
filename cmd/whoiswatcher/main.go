@@ -1,8 +1,10 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/likexian/whois"
@@ -10,9 +12,12 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/net/proxy"
 	"gopkg.in/yaml.v3"
+	"io"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -38,6 +43,7 @@ var threads int
 var strikes []string
 var jsoni string
 var sleeper int
+var nrdDirectory string
 
 type WatchList []Condition
 
@@ -64,13 +70,65 @@ func init() {
 	rootCmd.PersistentFlags().IntVarP(&threads, "threads", "t", 10, "Number of threads")
 	rootCmd.PersistentFlags().StringVarP(&jsoni, "jsoninput", "j", "", "Run against a previously imported json file")
 	rootCmd.PersistentFlags().IntVarP(&sleeper, "sleep", "s", 10, "Seconds to sleep between requests when rate limited.")
+	rootCmd.PersistentFlags().StringVarP(&nrdDirectory, "nrd", "x", "", "Use directory as input. Download yesterdays newly registered domains and write to the provided directory.")
 
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
+		if nrdDirectory != "" {
+			yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+			log.Printf("[+] Downloading yesterday's Newly Registered Domains and writing to %+v", nrdDirectory)
+			downloadNRD(yesterday, nrdDirectory)
+			return
+		}
+
 		// If a user doesn't set a watchlist, automatically output the result
 		if watchlistPath == "" {
 			verbose = true
 		} else {
 			processWatchList(watchlistPath)
+		}
+
+		if jsoni != "" {
+			if watchlistPath == "" {
+				log.Fatalf("JSON Input requires a watchlist")
+			}
+
+			result := whoisparser.WhoisInfo{}
+			file, err := os.Open(jsoni)
+			if err != nil {
+				fmt.Println(os.Stderr, "Error opening json input file: %v", err)
+				os.Exit(1)
+			}
+			defer file.Close()
+
+			jsoninput := bufio.NewScanner(file)
+			for jsoninput.Scan() {
+				line := jsoninput.Text()
+				err := json.Unmarshal([]byte(line), &result)
+				if err != nil {
+					//fmt.Fprintf(os.Stderr, "Error unmarshaling line in JSON file: %v\n", err)
+					continue
+				}
+
+				if verbose == true {
+					fmt.Println(line)
+					resultJSON, err := json.MarshalIndent(result, "", "  ")
+					if err != nil {
+						fmt.Println(os.Stderr, "Error marshaling result to JSON: %v", err)
+						continue
+					}
+
+					// todo - flip this back or delete
+					if false {
+						fmt.Println(string(resultJSON))
+					}
+
+				}
+
+				if result.Registrant != nil {
+					processResultWatchlist(result)
+				}
+			}
+			return
 		}
 
 		if filePath != "" {
@@ -125,7 +183,7 @@ func processFile(filePath string) {
 				select {
 				case <-ctx.Done():
 					if ctx.Err() == context.DeadlineExceeded {
-						fmt.Println("Operation timed out")
+						fmt.Println("{\"error\":\"Operation timed out - " + domain + " \"}")
 					}
 				}
 			}
@@ -142,7 +200,7 @@ func processFile(filePath string) {
 }
 
 func processRateLimited() {
-	fmt.Printf("Processing a total of %v rate limited domains, sleeping for %v seconds \n", len(rateLimited), sleeper)
+	fmt.Printf("{\"message\":\"Processing a total of %v rate limited domains, sleeping for %v seconds\"}\n", len(rateLimited), sleeper)
 	time.Sleep(time.Duration(sleeper) * time.Second)
 
 	for {
@@ -157,7 +215,7 @@ func processRateLimited() {
 		rand.Seed(time.Now().UnixNano())
 		randomNumber := rand.Intn(10)
 		if randomNumber == 0 {
-			fmt.Printf("Processing a total of %v rate limited domains, sleeping for %v seconds \n", len(rateLimited), sleeper)
+			fmt.Printf("{\"message\":\"Processing a total of %v rate limited domains, sleeping for %v seconds\"}\n", len(rateLimited), sleeper)
 			time.Sleep(time.Duration(sleeper) * time.Second)
 		}
 	}
@@ -202,48 +260,28 @@ func checkForMatch(inputs []string, conditionType, value string) bool {
 func processDomain(domain string) {
 	result := whoisparser.WhoisInfo{}
 
-	if jsoni != "" {
-		// Choosing to iterate this file line by line rather than load into memory.
-		file, err := os.Open(jsoni)
+	c := whois.NewClient()
+	c.SetTimeout(time.Second * 4)
+	if socksproxy != "" {
+		dialer, err := proxy.SOCKS5("tcp", socksproxy, nil, proxy.Direct)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error opening json input file: %v\n", err)
-			os.Exit(1)
+			log.Fatal(`{"error":"error creating dialer, ` + err.Error() + `"}`)
 		}
-		defer file.Close()
+		c.SetDialer(dialer)
+	}
+	whois_raw, err := c.Whois(domain)
+	if err != nil {
+		time.Sleep(time.Second * 1)
+		whois_raw, err = c.Whois(domain)
+		if err != nil {
+			fmt.Println(`{"error":"Error occurred during whois lookup, ` + err.Error() + `"}`)
+		}
+	}
 
-		jsoninput := bufio.NewScanner(file)
-		for jsoninput.Scan() {
-			line := jsoninput.Text()
-			err := json.Unmarshal([]byte(line), &result)
-			if err != nil {
-				fmt.Println("Error unmarshaling line in JSON file:", err)
-				return
-			}
-		}
-	} else {
-		c := whois.NewClient()
-		c.SetTimeout(time.Second * 4)
-		if socksproxy != "" {
-			dialer, err := proxy.SOCKS5("tcp", socksproxy, nil, proxy.Direct)
-			if err != nil {
-				log.Fatal("Error creating dialer, ", err)
-			}
-			c.SetDialer(dialer)
-		}
-		whois_raw, err := c.Whois(domain)
-		if err != nil {
-			time.Sleep(time.Second * 1)
-			whois_raw, err = c.Whois(domain)
-			if err != nil {
-				fmt.Printf("Error occurred during whois lookup: %v \n", err)
-			}
-		}
-
-		result, err = whoisparser.Parse(whois_raw)
-		if err != nil {
-			fmt.Printf("Error during check with: %v - %v \n", domain, err)
-			return
-		}
+	result, err = whoisparser.Parse(whois_raw)
+	if err != nil {
+		fmt.Println(`{"error":"Error during check with:` + domain + `" - "` + err.Error() + `"}`)
+		return
 	}
 
 	if verbose == true {
@@ -267,6 +305,50 @@ func processDomain(domain string) {
 		// todo - do something here
 	}
 
+	// Check if technical, administrative, and billing are set -- if not, blank them out.
+	if result.Technical == nil {
+		result.Technical = &whoisparser.Contact{}
+	}
+	if result.Administrative == nil {
+		result.Administrative = &whoisparser.Contact{}
+	}
+	if result.Billing == nil {
+		result.Billing = &whoisparser.Contact{}
+	}
+	if result.Registrant == nil {
+		result.Registrant = &whoisparser.Contact{}
+	}
+
+	// This feature allows a user to output a single field from a record.
+	if outputField != "" {
+		fields := strings.Split(outputField, ",")
+		for _, value := range fields {
+			if value == "email" {
+				fmt.Println("Registrar Email:" + result.Registrant.Email)
+				fmt.Println("Administrative Email:" + result.Administrative.Email)
+				fmt.Println("Technical Email:" + result.Technical.Email)
+			}
+			if value == "phone" {
+				fmt.Println("Registrar Phone:" + result.Registrant.Phone)
+				fmt.Println("Administrative Phone:" + result.Administrative.Phone)
+				fmt.Println("Technical Phone:" + result.Technical.Phone)
+			}
+			if value == "organization" {
+				fmt.Println("Registrant Organization:" + result.Registrant.Organization)
+				fmt.Println("Administrative Organization:" + result.Administrative.Organization)
+				fmt.Println("Technical Organization:" + result.Technical.Organization)
+			}
+			if value == "name" {
+				fmt.Println("Registrar Name:" + result.Registrant.Name)
+				fmt.Println("Administrative Name:" + result.Administrative.Name)
+				fmt.Println("Technical Name:" + result.Technical.Name)
+			}
+		}
+	}
+	processResultWatchlist(result)
+}
+
+func processResultWatchlist(result whoisparser.WhoisInfo) {
 	// Check if technical, administrative, and billing are set if not blank them out.
 	if result.Technical == nil {
 		result.Technical = &whoisparser.Contact{}
@@ -277,36 +359,8 @@ func processDomain(domain string) {
 	if result.Billing == nil {
 		result.Billing = &whoisparser.Contact{}
 	}
-
-	if result.Registrar == nil {
-		result.Registrar = &whoisparser.Contact{}
-	}
-
-	// This feature allows a user to output a single field from a record.
-	if outputField != "" {
-		fields := strings.Split(outputField, ",")
-		for _, value := range fields {
-			if value == "email" {
-				fmt.Println("Registrar Email:" + result.Registrar.Email)
-				fmt.Println("Administrative Email:" + result.Administrative.Email)
-				fmt.Println("Technical Email:" + result.Technical.Email)
-			}
-			if value == "phone" {
-				fmt.Println("Registrar Phone:" + result.Registrar.Phone)
-				fmt.Println("Administrative Phone:" + result.Administrative.Phone)
-				fmt.Println("Technical Phone:" + result.Technical.Phone)
-			}
-			if value == "organization" {
-				fmt.Println("Registrar Organization:" + result.Registrar.Organization)
-				fmt.Println("Administrative Organization:" + result.Administrative.Organization)
-				fmt.Println("Technical Organization:" + result.Technical.Organization)
-			}
-			if value == "name" {
-				fmt.Println("Registrar Name:" + result.Registrar.Name)
-				fmt.Println("Administrative Name:" + result.Administrative.Name)
-				fmt.Println("Technical Name:" + result.Technical.Name)
-			}
-		}
+	if result.Registrant == nil {
+		result.Registrant = &whoisparser.Contact{}
 	}
 
 	emailsToCheck := []string{
@@ -338,8 +392,6 @@ func processDomain(domain string) {
 	}
 
 	//registrarToCheck := result.Registrar.Name
-
-	// todo - allow a check for a contains on domain (e.g. foo.sucks)
 	for _, condition := range watchlist {
 		if len(condition.Combo) > 0 {
 			// Todo - This code smells bad and needs to be refactored. checkForMatch could return true or false?
@@ -472,6 +524,65 @@ func processDomain(domain string) {
 				printJson(result)
 				break
 			}
+		}
+	}
+}
+
+func downloadNRD(date, dir string) {
+	zipFile := filepath.Join(dir, date+".zip")
+	if _, err := os.Stat(zipFile); os.IsNotExist(err) {
+		b64 := base64.StdEncoding.EncodeToString([]byte(date + ".zip"))
+		nrdZip := fmt.Sprintf("https://www.whoisds.com//whois-database/newly-registered-domains/%s/nrd", b64)
+
+		resp, err := http.Get(nrdZip)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			fmt.Printf("File %s.zip does not exist on the remote server.\n", date)
+			return
+		}
+		defer resp.Body.Close()
+
+		out, err := os.Create(zipFile)
+		if err != nil {
+			fmt.Printf("Error creating file: %v\n", err)
+			return
+		}
+		defer out.Close()
+
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			fmt.Printf("Error downloading file: %v\n", err)
+			return
+		}
+
+		r, err := zip.OpenReader(zipFile)
+		if err != nil {
+			fmt.Printf("Error opening zip file: %v\n", err)
+			return
+		}
+		defer r.Close()
+
+		for _, f := range r.File {
+			rc, err := f.Open()
+			if err != nil {
+				fmt.Printf("Error opening file in zip: %v\n", err)
+				return
+			}
+			defer rc.Close()
+
+			outPath := filepath.Join(dir, date+".txt")
+			outFile, err := os.Create(outPath)
+			if err != nil {
+				fmt.Printf("Error creating extracted file: %v\n", err)
+				return
+			}
+			defer outFile.Close()
+
+			_, err = io.Copy(outFile, rc)
+			if err != nil {
+				fmt.Printf("Error extracting file: %v\n", err)
+				return
+			}
+			log.Println("[+] Wrote to ", outPath)
 		}
 	}
 }
