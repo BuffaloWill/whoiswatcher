@@ -9,7 +9,7 @@ go install -v github.com/BuffaloWill/whoiswatcher/cmd/whoiswatcher@latest
 ## Overview
 
 WHOIS data is an excellent resource for identifying apex domains owned by a company. 
-Additionally, there are 30k to 200k+ new domains registered every day. 
+Additionally, there are 50k to 400k+ new domains registered every day. 
 
 whoiswatcher was built to:
 
@@ -33,6 +33,17 @@ The configuration can also combine two pieces of information. For example a doma
 
 ```bash
 echo fidelity.com | whoiswatcher
+```
+
+### Downloading Newly Registered Domains
+
+whoiswatcher can download a list of NRD from the past 24 hours from https://www.whoisds.com. Provide a directory to
+store the file:
+
+```bash
+
+whoiswatcher --nrd /data/nrd/
+
 ```
 
 ### Getting Alerted on an Artifact
