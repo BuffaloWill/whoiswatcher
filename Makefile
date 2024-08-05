@@ -18,16 +18,6 @@ testv:
 	go build -o whoiswatcher cmd/whoiswatcher/main.go
 	./whoiswatcher -f tests/domain_list.txt -v
 
-.phony: block
-block:
-	go build -o whoiswatcher cmd/whoiswatcher/main.go
-	./whoiswatcher -f tests/sensitive.txt -e
-
-.phony: blockv
-blockv:
-	go build -o whoiswatcher cmd/whoiswatcher/main.go
-	./whoiswatcher -f tests/sensitive.txt -v -w .watchlist.yaml
-
 .phony: nrd
 nrd:
 	go build -o whoiswatcher cmd/whoiswatcher/main.go
@@ -38,14 +28,6 @@ nrd:
 build:
 	go build -o whoiswatcher cmd/whoiswatcher/main.go
 
-.phony: jsoni
-jsoni:
-	go build -o whoiswatcher cmd/whoiswatcher/main.go
-	echo fidelity.com | ./whoiswatcher -v | tee tests/many-tests.json
-	echo fidelity.com | ./whoiswatcher -j tests/single-test.json -w .watchlist.yaml
-	echo fidelity.com | ./whoiswatcher -j tests/many-lines.json -w .watchlist.yaml
-	echo brenau.edu | ./whoiswatcher -j tests/tenthousand-domains.json -w .watchlist.yaml
-
 .phony: buildz
 buildz:
-	GOARCH=amd64 GOOS=linux go build -o builds/whoiswatcher-v1.0.1-x86-64 cmd/whoiswatcher/main.go
+	GOARCH=amd64 GOOS=linux go build -o builds/whoiswatcher-v1.0.0-amd64 cmd/whoiswatcher/main.go
